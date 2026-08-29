@@ -1,0 +1,62 @@
+name: selftest
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: selftest-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Golden fixtures
+        run: bash scripts/validate.sh --selftest
+
+  action-pass:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Action on PASS fixture
+        uses: ./
+        with:
+          root: scripts/fixtures/ok-static
+          mode: full
+          format: github
+
+  action-fail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Action on FAIL fixture
+        id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          root: scripts/fixtures/bad-web
+          mode: full
+          format: github
+      - name: Expect product FAIL
+        run: |
+          if [ "${{ steps.bad.outcome }}" != "failure" ]; then
+            echo "::error::bad-web fixture must fail the composite action"
+            exit 1
+          fi
+          if [ "${{ steps.bad.outputs.exit-code }}" != "1" ]; then
+            echo "::error::expected exit-code 1, got ${{ steps.bad.outputs.exit-code }}"
+            exit 1
+          fi

@@ -1,0 +1,126 @@
+name: mvp-ship-gate
+description: Blocking MVP delivery gate — dead UI, placeholders, required docs, SEO chrome. Not a WCAG AA certificate.
+author: SuperfastSimon
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  root:
+    description: Project root to scan
+    required: false
+    default: "."
+  mode:
+    description: light (PR) or full (default branch / tag / ship)
+    required: false
+    default: full
+  format:
+    description: text, json, github, or junit
+    required: false
+    default: github
+  report-path:
+    description: JSON report path inside the workspace
+    required: false
+    default: artifacts/mvp-ship-gate.json
+  upload-artifact:
+    description: Upload the JSON report even when the gate fails
+    required: false
+    default: "true"
+
+outputs:
+  result:
+    description: PASS or FAIL
+    value: ${{ steps.gate.outputs.result }}
+  exit-code:
+    description: 0 pass, 1 product fail, 2 harness fail
+    value: ${{ steps.gate.outputs.exit-code }}
+  report-path:
+    description: Workspace path of the JSON report
+    value: ${{ steps.gate.outputs.report-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Run mvp-ship-gate
+      id: gate
+      shell: bash
+      env:
+        MVP_GATE_FORMAT: ${{ inputs.format }}
+        MVP_GATE_REPORT: ${{ github.workspace }}/${{ inputs.report-path }}
+        ACTION_HOME: ${{ github.action_path }}
+        SCAN_ROOT: ${{ inputs.root }}
+        SCAN_MODE: ${{ inputs.mode }}
+      run: |
+        set +e
+        mkdir -p "$(dirname "$MVP_GATE_REPORT")"
+        bash "$ACTION_HOME/scripts/validate.sh" "$SCAN_ROOT" "$SCAN_MODE"
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "report-path=${{ inputs.report-path }}" >> "$GITHUB_OUTPUT"
+        if [ "$code" -eq 0 ]; then
+          echo "result=PASS" >> "$GITHUB_OUTPUT"
+          echo "Gate PASS (mode=$SCAN_MODE)"
+          exit 0
+        fi
+        if [ "$code" -eq 1 ]; then
+          echo "result=FAIL" >> "$GITHUB_OUTPUT"
+          echo "::error::mvp-ship-gate FAIL — product checks failed. Promote is blocked."
+          exit 1
+        fi
+        echo "result=HARNESS" >> "$GITHUB_OUTPUT"
+        echo "::error::mvp-ship-gate harness error (exit $code). Infra, not a product PASS."
+        exit 2
+
+    - name: Job summary
+      if: always()
+      shell: bash
+      env:
+        REPORT: ${{ github.workspace }}/${{ inputs.report-path }}
+      run: |
+        {
+          echo "## mvp-ship-gate"
+          echo
+          if [ -f "$REPORT" ]; then
+            python3 - "$REPORT" <<'PY'
+        import json, sys
+        p = json.load(open(sys.argv[1]))
+        s = p.get("summary", {})
+        print(f"- result: **{s.get('result')}**")
+        print(f"- mode: `{p.get('mode')}`")
+        print(f"- web_project: {p.get('web_project')}")
+        print(f"- pii_signals: {p.get('pii_signals')}")
+        print(f"- fail_count: {s.get('fail_count')}")
+        print(f"- info_count: {s.get('info_count')}")
+        fails = [f for f in p.get("findings", []) if f.get("severity") == "FAIL"]
+        if fails:
+            print()
+            print("| check | file | message |")
+            print("|---|---|---|")
+            for f in fails[:50]:
+                loc = f.get("path", "")
+                if f.get("line"):
+                    loc = f"{loc}:{f['line']}"
+                msg = (f.get("message") or "").replace("|", "\\|")
+                print(f"| `{f.get('check')}` | `{loc}` | {msg} |")
+        PY
+          else
+            echo "No JSON report written."
+          fi
+          echo
+          echo "This is an automated gate, not a WCAG conformance claim."
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload report
+      if: ${{ always() && inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: mvp-ship-gate-report
+        path: ${{ inputs.report-path }}
+        if-no-files-found: ignore
+        retention-days: 14

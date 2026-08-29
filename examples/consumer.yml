@@ -1,0 +1,45 @@
+name: mvp-ship-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: light or full
+        type: choice
+        options: [light, full]
+        default: full
+
+concurrency:
+  group: mvp-ship-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: mvp-ship-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=light" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=full" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run mvp-ship-gate
+        uses: SuperfastSimon/mvp-ship-gate@main
+        with:
+          root: .
+          mode: ${{ steps.mode.outputs.value }}
+          format: github
