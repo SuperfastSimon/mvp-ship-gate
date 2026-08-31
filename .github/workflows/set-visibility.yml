@@ -1,0 +1,37 @@
+name: Set repo visibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "false = dry-run (default). true = PATCH visibility now."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  visibility:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require GH_ADMIN_TOKEN
+        env:
+          TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Secret GH_ADMIN_TOKEN ontbreekt. Classic PAT met scope repo, of fine-grained Administration read+write op alle repos van SuperfastSimon."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Run visibility policy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+          OWNER: SuperfastSimon
+          APPLY: ${{ inputs.apply && '1' || '0' }}
+        run: |
+          chmod +x scripts/set-repo-visibility.sh
+          ./scripts/set-repo-visibility.sh
