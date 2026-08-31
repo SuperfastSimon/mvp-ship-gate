@@ -3,11 +3,14 @@ name: Set repo visibility
 on:
   workflow_dispatch:
     inputs:
-      apply:
-        description: "false = dry-run (default). true = PATCH visibility now."
+      mode:
+        description: "KEEP public = YieldLoop + mvp-ship-gate. Rest → private."
         required: true
-        type: boolean
-        default: false
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
 
 permissions:
   contents: read
@@ -16,12 +19,18 @@ jobs:
   visibility:
     runs-on: ubuntu-latest
     steps:
+      - name: Policy
+        run: |
+          echo "KEEP public: YieldLoop, mvp-ship-gate"
+          echo "All other owned repos → private"
+          echo "Mode: ${{ inputs.mode }}"
+
       - name: Require GH_ADMIN_TOKEN
         env:
           TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::error::Secret GH_ADMIN_TOKEN ontbreekt. Classic PAT met scope repo, of fine-grained Administration read+write op alle repos van SuperfastSimon."
+            echo "::error::Secret GH_ADMIN_TOKEN ontbreekt. Classic PAT met scope repo."
             exit 1
           fi
 
@@ -31,7 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
           OWNER: SuperfastSimon
-          APPLY: ${{ inputs.apply && '1' || '0' }}
+          APPLY: ${{ inputs.mode == 'apply' && '1' || '0' }}
         run: |
           chmod +x scripts/set-repo-visibility.sh
           ./scripts/set-repo-visibility.sh
