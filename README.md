@@ -4,6 +4,16 @@ Blocking MVP delivery gate for GitHub Actions. Catches dead links, empty handler
 
 This is **not** a WCAG 2.2 AA certificate.
 
+Repo: [github.com/SuperfastSimon/mvp-ship-gate](https://github.com/SuperfastSimon/mvp-ship-gate)
+
+## Status
+
+Public GitHub Action. No hosted app, no GitHub Pages. The working consumer example is [`examples/consumer.yml`](examples/consumer.yml).
+
+Pin the action to a **commit SHA** (or a tag once one exists). Do not follow `@main` in production.
+
+Current pin target: `c81a1ab97d8cefa260cbf61db72331b83b4f2ca4`.
+
 ## Use in a product repo
 
 ```yaml
@@ -17,15 +27,15 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: SuperfastSimon/mvp-ship-gate@main
+      - uses: actions/checkout@v5
+      - uses: SuperfastSimon/mvp-ship-gate@c81a1ab97d8cefa260cbf61db72331b83b4f2ca4
         with:
           root: .
           mode: light   # light on PRs, full on main
           format: github
 ```
 
-Copy `examples/consumer.yml` if you want the mode switch (PR = light, main/tag = full).
+Copy [`examples/consumer.yml`](examples/consumer.yml) if you want the mode switch (PR = light, main/tag = full).
 
 ## Inputs
 
@@ -46,3 +56,10 @@ Copy `examples/consumer.yml` if you want the mode switch (PR = light, main/tag =
 | 2 | Harness/infra error — also block, not a product PASS |
 
 Mark this workflow as a **required status check** on the default branch. Do not set `continue-on-error` on the gate step.
+
+## Legal
+
+- Terms: [`TERMS.md`](TERMS.md) (template, not legal advice)
+- License: MIT — [`LICENSE`](LICENSE)
+
+No Privacy notice: this action does not collect personal data. It scans a checkout and writes a report artifact.
