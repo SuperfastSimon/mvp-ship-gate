@@ -6,13 +6,14 @@
 #   KEEP_PUBLIC → public
 #   everything else owned → private
 #   Documents + Platform already private, untouched if already matching
+#   YieldLoop is a pilot with placeholders — private, not exhibit
 #
 # Token: classic `repo`  OR  fine-grained Administration:read+write on all repos
 # Default: dry-run. Apply:  APPLY=1 ./scripts/set-repo-visibility.sh
 set -euo pipefail
 
 OWNER="${OWNER:-SuperfastSimon}"
-KEEP_PUBLIC=(YieldLoop mvp-ship-gate)
+KEEP_PUBLIC=(mvp-ship-gate)
 
 need() { command -v "$1" >/dev/null || { echo "missing: $1" >&2; exit 1; }; }
 need curl

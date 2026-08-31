@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "KEEP public = YieldLoop + mvp-ship-gate. Rest → private."
+        description: "KEEP public = mvp-ship-gate only. Rest → private."
         required: true
         type: choice
         options:
@@ -21,7 +21,8 @@ jobs:
     steps:
       - name: Policy
         run: |
-          echo "KEEP public: YieldLoop, mvp-ship-gate"
+          echo "KEEP public: mvp-ship-gate"
+          echo "YieldLoop is pilot — private"
           echo "All other owned repos → private"
           echo "Mode: ${{ inputs.mode }}"
 
